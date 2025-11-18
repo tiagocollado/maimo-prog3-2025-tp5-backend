@@ -4,7 +4,7 @@ import Product from "../models/products.js";
 
 const findAllProducts = async (req, res) => {
   try {
-    const products = await Product.find().select("_id name price categories");
+    const products = await Product.find();
     return res
       .status(200)
       .send({ message: "Todos los products", products: products });
@@ -16,7 +16,10 @@ const findAllProducts = async (req, res) => {
 const findOneProduct = async (req, res) => {
   const { id } = req.params;
   try {
-    const product = await Product.findOne({ _id: id }).select("_id name price categories");
+    const product = await Product.findOne({ _id: id });
+    if (!product) {
+        return res.status(404).send({ message: "Producto no encontrado" });
+    }
     return res.status(200).send({ message: "Producto encontrado", product });
   } catch (error) {
     return res.status(501).send({ message: "Hubo un error", error });
@@ -24,9 +27,9 @@ const findOneProduct = async (req, res) => {
 };
 
 const addProduct = async (req, res) => {
-  const { name, price, categories } = req.body;
+  const { name, price, brand, description, stock, categories, images, type, model, currency, year, specs } = req.body;
   try {
-    const product = new Product({ name, price, categories });
+    const product = new Product({ name, price, brand, description, stock, categories, images, type, model, currency, year, specs });
     await product.save();
     return res.status(200).send({ message: "Producto creado", product });
   } catch (error) {
@@ -52,25 +55,22 @@ const deleteProduct = async (req, res) => {
 
 const updateProduct = async (req, res) => {
   const { id } = req.params;
-  const { name, price } = req.body;
   try {
-    const productToUpdate = await Product.findOne({ _id: id });
-    if (!productToUpdate) {
+    const updatedProduct = await Product.findByIdAndUpdate(
+      id,
+      req.body, // Pasa todo el body para actualizar
+      { new: true, runValidators: true } // {new: true} devuelve el doc actualizado
+    );
+
+    if (!updatedProduct) {
       return res.status(404).send({ message: "No existe el producto", id: id });
     }
-
-    //Valores a actualizar
-    productToUpdate.name = name;
-    productToUpdate.price = price;
-
-
-
-    await productToUpdate.save();
+    
     return res
       .status(200)
-      .send({ message: "Producto actualizado", product: productToUpdate });
+      .send({ message: "Producto actualizado", product: updatedProduct });
   } catch (error) {
-    return res.status(501).send({ message: "Hubo un error", error });
+    return res.status(500).send({ message: "Hubo un error", error: error.message });
   }
 };
 

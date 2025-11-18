@@ -3,52 +3,36 @@ import Category from "../models/category.js";
 
 const router = express.Router();
 
-// Crear categoría (name + slug)
-router.post("/", async (req, res) => {
+const findAllArtists = async (req, res) => {
   try {
-    const { name, slug } = req.body;
-    const category = new Category({ name, slug });
-    await category.save();
-    return res.status(201).send({ message: "Categoría creada", category });
+    const artists = await Category.find().select("name slug imageUrl bio");
+    return res
+      .status(200)
+      .send({ message: "Todos los artistas", categories: artists });
   } catch (error) {
     return res.status(500).send({ message: "Hubo un error", error });
   }
-});
+};
 
-// Listar categorías (simple)
-router.get("/", async (_req, res) => {
+const findOneArtistBySlug = async (req, res) => {
+  const { slug } = req.params; // Buscamos por slug
   try {
-    const categories = await Category.find().select("_id name slug");
-    return res.status(200).send({ message: "Todas las categorías", categories });
+    const artist = await Category.findOne({ slug: slug }).populate("songs.setup"); //los IDs que están en 'songs.setup', buscalos en el modelo 'Product' (tu 'gears') y traelos
+    if (!artist) {
+      return res.status(404).send({ message: "No se encontró el artista" });
+    }
+    return res
+      .status(200)
+      .send({ message: "Artista encontrado", category: artist });
   } catch (error) {
-    return res.status(500).send({ message: "Hubo un error", error });
+    return res
+      .status(500)
+      .send({ message: "Hubo un error", error: error.message });
   }
-});
+};
 
-// Productos por categoría (slug o id)  -> ya lo teníamos
-router.get("/:key/products", async (req, res) => {
-  const { key } = req.params;
-  try {
-    const isId = key.match(/^[0-9a-fA-F]{24}$/);
-    const category = isId
-      ? await Category.findById(key)
-      : await Category.findOne({ slug: key });
-
-    if (!category) return res.status(404).send({ message: "Categoría no encontrada" });
-
-    const products = await (await import("../models/products.js")).default
-      .find({ categories: category._id })
-      .select("_id name categories")
-      .populate("categories", "name slug");
-
-    return res.status(200).send({
-      message: "Productos por categoría",
-      category: { _id: category._id, name: category.name, slug: category.slug },
-      products
-    });
-  } catch (error) {
-    return res.status(500).send({ message: "Hubo un error", error });
-  }
-});
+// Endpoints principales
+router.get("/", findAllArtists);
+router.get("/:slug", findOneArtistBySlug); // Ruta clave para la página de Artista
 
 export default router;
